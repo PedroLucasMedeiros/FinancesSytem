@@ -1,0 +1,5 @@
+# Arquivo de variáveis de ambiente (SEM a barra)
+.env
+
+# Pasta do ambiente virtual (COM a barra)
+.venv/
