@@ -2,7 +2,7 @@ from decimal import Decimal
 
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
-
+from django.conf import settings
 from core.models import BaseModel
 
 MIN_MONEY_VALUE = Decimal("0.00")
@@ -10,15 +10,17 @@ MIN_TRANSACTION_VALUE = Decimal("0.01")
 
 
 class Person(BaseModel):
+    # Vínculo com o usuário autenticado: base do isolamento de dados
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="person",
+        null=True,
+        blank=True,
+        verbose_name="usuário",
+    )
     name = models.CharField("nome completo", max_length=150)
-
-    class Meta:
-        verbose_name = "pessoa"
-        verbose_name_plural = "pessoas"
-        ordering = ["name"]
-
-    def __str__(self):
-        return self.name
+    # ... restante igual
 
 
 class PlannedBudget(BaseModel):
@@ -96,7 +98,15 @@ class FinancialTransaction(BaseModel):
 
 
 class FinancialGoal(BaseModel):
+    person = models.ForeignKey(
+        Person,
+        on_delete=models.PROTECT,
+        related_name="goals",
+        verbose_name="pessoa",
+    )
+
     goal_title = models.CharField("nome da meta", max_length=120)
+    
     target_amount = models.DecimalField(
         "valor objetivo",
         max_digits=12,
