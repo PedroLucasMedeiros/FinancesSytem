@@ -53,7 +53,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework_simplejwt",
     "rest_framework_simplejwt.token_blacklist",  # necessário para logout/rotação de refresh
-
+    "drf_spectacular",  
     # Locais (core primeiro, pois os demais dependem dele)
     "core",
     "authentication",
@@ -73,6 +73,8 @@ MIDDLEWARE = [
 ]
 
 REST_FRAMEWORK = {
+    
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     # Somente JWT: sem SessionAuthentication, logo sem cookies de sessão nem CSRF na API (stateless)
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",

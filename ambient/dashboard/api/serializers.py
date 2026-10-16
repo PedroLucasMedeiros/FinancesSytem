@@ -5,26 +5,13 @@ from rest_framework import serializers
 
 from dashboard.models import FinancialGoal, FinancialTransaction, Person, PlannedBudget
 
+from .mixins import OwnedPersonSerializerMixin  # ← agora vem do arquivo de mixins
+
 # Metadados imutáveis, repetidos no Meta de cada serializer
 READ_ONLY_METADATA = ("id", "created_at", "updated_at", "deleted_at")
-METADATA_FIELDS = READ_ONLY_METADATA
 
-
-class OwnedPersonSerializerMixin:
-    """Restringe o campo `person` às pessoas do usuário autenticado.
-
-    Sem isso, um usuário poderia criar lançamentos na Person de outro
-    enviando o UUID dela no payload.
-    """
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        request = self.context.get("request")
-        person_field = self.fields.get("person")
-        if person_field is not None and request and request.user.is_authenticated:
-            person_field.queryset = Person.objects.filter(user=request.user)
-
-
+# (PersonSerializer, PlannedBudgetSerializer, FinancialTransactionSerializer
+#  e FinancialGoalSerializer continuam exatamente como estavam)
 class PersonSerializer(serializers.ModelSerializer):
     class Meta:
         model = Person
