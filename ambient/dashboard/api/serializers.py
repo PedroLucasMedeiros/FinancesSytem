@@ -13,15 +13,16 @@ READ_ONLY_METADATA = ("id", "created_at", "updated_at", "deleted_at")
 # (PersonSerializer, PlannedBudgetSerializer, FinancialTransactionSerializer
 #  e FinancialGoalSerializer continuam exatamente como estavam)
 class PersonSerializer(serializers.ModelSerializer):
+    # Preenchido com o usuário autenticado; não aparece na resposta nem aceita payload
+    user = serializers.HiddenField(default=serializers.CurrentUserDefault())
+
     class Meta:
         model = Person
         fields = ("id", "user", "name", "created_at", "updated_at", "deleted_at")
-        # `user` é preenchido pela view com request.user, nunca pelo payload
-        read_only_fields = ("user", *READ_ONLY_METADATA)
+        read_only_fields = READ_ONLY_METADATA
 
     def validate(self, attrs):
         request = self.context["request"]
-        # all_objects: o OneToOne também conflita com perfis excluídos logicamente
         if self.instance is None and Person.all_objects.filter(user=request.user).exists():
             raise serializers.ValidationError("Este usuário já possui um perfil de pessoa.")
         return attrs

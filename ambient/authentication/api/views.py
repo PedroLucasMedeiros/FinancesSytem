@@ -1,15 +1,15 @@
-from drf_spectacular.utils import OpenApiResponse, extend_schema, inline_serializer
-from rest_framework import generics, serializers, status
+from drf_spectacular.utils import OpenApiResponse, extend_schema, extend_schema_view, inline_serializer
+from rest_framework import mixins, serializers, viewsets
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework_simplejwt.exceptions import TokenError
-from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
     TokenVerifyView,
 )
+
+from authentication.models import User
 
 from .serializers import LogoutSerializer, RegisterSerializer, UserSerializer
 
@@ -36,7 +36,8 @@ class DocumentedTokenVerifyView(TokenVerifyView):
 
 
 # --- Views do app ---
-class StatusView(APIView):
+class StatusViewSet(viewsets.ViewSet):
+    """Health check: sem model nem serializer, então não usa mixins."""
     permission_classes = [AllowAny]
     authentication_classes = []
 
@@ -44,44 +45,45 @@ class StatusView(APIView):
         tags=TAG, summary="Status da API",
         responses=inline_serializer("StatusResponse", {"status": serializers.CharField()}),
     )
-    def get(self, request):
+    def retrieve(self, request):
         return Response({"status": "ok"})
+    
 
-
-@extend_schema(tags=TAG, summary="Cadastro de usuário",
-               description="Cria o usuário e o perfil `Person` vinculado.")
-class RegisterView(generics.CreateAPIView):
-    serializer_class = RegisterSerializer
+@extend_schema_view(create=extend_schema(
+    tags=TAG, summary="Cadastro de usuário",
+    description="Cria o usuário e o perfil `Person` vinculado.",
+))
+class RegisterViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
     permission_classes = [AllowAny]
     authentication_classes = []
+    serializer_class = RegisterSerializer
+    queryset = User.objects.none()  # só cria; o queryset serve apenas ao schema
 
 
-class MeView(APIView):
+@extend_schema_view(retrieve=extend_schema(tags=TAG, summary="Usuário autenticado"))
+class MeViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
     permission_classes = [IsAuthenticated]
+    serializer_class = UserSerializer
+    queryset = User.objects.all()
 
-    @extend_schema(tags=TAG, summary="Usuário autenticado", responses=UserSerializer)
-    def get(self, request):
-        return Response(UserSerializer(request.user).data)
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return super().get_queryset().none()
+        return super().get_queryset().filter(pk=self.request.user.pk)
+
+    def get_object(self):
+        # A rota /me/ não tem {id}: o objeto é sempre o próprio usuário
+        return self.get_queryset().get()
 
 
-class LogoutView(APIView):
+@extend_schema_view(create=extend_schema(
+    tags=TAG, summary="Logout",
+    description="Coloca o refresh token na blacklist.",
+    responses={
+        201: OpenApiResponse(description="Token invalidado."),
+        400: OpenApiResponse(description="Token inválido ou expirado."),
+    },
+))
+class LogoutViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
     permission_classes = [IsAuthenticated]
-
-    @extend_schema(
-        tags=TAG, summary="Logout",
-        description="Coloca o refresh token na blacklist.",
-        request=LogoutSerializer,
-        responses={
-            205: OpenApiResponse(description="Token invalidado."),
-            400: OpenApiResponse(description="Token ausente, inválido ou expirado."),
-        },
-    )
-    def post(self, request):
-        serializer = LogoutSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        try:
-            RefreshToken(serializer.validated_data["refresh"]).blacklist()
-        except TokenError:
-            return Response({"detail": "Token inválido ou expirado."},
-                            status=status.HTTP_400_BAD_REQUEST)
-        return Response(status=status.HTTP_205_RESET_CONTENT)
+    serializer_class = LogoutSerializer

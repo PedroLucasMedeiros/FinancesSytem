@@ -2,6 +2,8 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.db import transaction
 from rest_framework import serializers
+from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.validators import UniqueValidator
 
 from dashboard.models import Person
@@ -39,5 +41,22 @@ class UserSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+
 class LogoutSerializer(serializers.Serializer):
-    refresh = serializers.CharField(help_text="Refresh token a ser invalidado.")
+    # write_only: o token não é devolvido na resposta
+    refresh = serializers.CharField(write_only=True, help_text="Refresh token a ser invalidado.")
+
+    def validate_refresh(self, value):
+        try:
+            token = RefreshToken(value)
+        except TokenError:
+            raise serializers.ValidationError("Token inválido ou expirado.")
+        # Um usuário só pode invalidar o próprio token
+        if str(token["user_id"]) != str(self.context["request"].user.pk):
+            raise serializers.ValidationError("Token inválido ou expirado.")
+        self._token = token
+        return value
+
+    def create(self, validated_data):
+        self._token.blacklist()  # chamado pelo CreateModelMixin via serializer.save()
+        return validated_data
