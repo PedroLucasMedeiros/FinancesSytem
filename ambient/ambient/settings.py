@@ -73,7 +73,7 @@ MIDDLEWARE = [
 ]
 
 REST_FRAMEWORK = {
-    
+
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     # Somente JWT: sem SessionAuthentication, logo sem cookies de sessão nem CSRF na API (stateless)
     "DEFAULT_AUTHENTICATION_CLASSES": (
@@ -86,6 +86,8 @@ REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": (
         "rest_framework.renderers.JSONRenderer",
     ),
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": 20,
 }
 
 

@@ -17,3 +17,6 @@ migrate:
 
 shell:
 	docker compose -f docker-compose.yml exec web python manage.py shell
+
+testDashboard:
+	docker compose -f docker-compose.yml exec web python manage.py test dashboard.tests -v 2
